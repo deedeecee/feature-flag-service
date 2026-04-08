@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: feature-flag-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/featureflags
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  security:
+    user:
+      name: ignored
+      password: ignored
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+feature-flags:
+  admin-api-key: ${ADMIN_API_KEY:dev-admin-key}
+  client-api-key: ${CLIENT_API_KEY:dev-client-key}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: always
