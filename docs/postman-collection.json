@@ -1,0 +1,486 @@
+{
+  "info": {
+    "_postman_id": "cdbf28d2-a379-4f62-9564-da30153dd675",
+    "name": "Feature Flag Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "31399026"
+  },
+  "item": [
+    {
+      "name": "Admin - Flag Management",
+      "item": [
+        {
+          "name": "Create flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"key\": \"{{flagKey}}\",\r\n  \"name\": \"New Checkout Redesign\",\r\n  \"enabled\": true,\r\n  \"rolloutPercentage\": 30\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List all flags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get flag by key",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update flag",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"key\": \"checkout-redesign\",\r\n  \"name\": \"New Checkout Redesign\",\r\n  \"enabled\": true,\r\n  \"rolloutPercentage\": 50\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Disable flag (killswitch)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"key\": \"{{flagKey}}\",\r\n  \"name\": \"New Checkout Redesign\",\r\n  \"enabled\": false,\r\n  \"rolloutPercentage\": 75\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete flag",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create A/B test flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"key\": \"homepage-ab-test\",\r\n  \"name\": \"Homepage A/B Test\",\r\n  \"enabled\": true,\r\n  \"rolloutPercentage\": 100,\r\n  \"variants\": [\r\n    { \"name\": \"control\",   \"weight\": 50 },\r\n    { \"name\": \"treatment\", \"weight\": 50 }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create targeted flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"key\": \"enterprise-feature\",\r\n  \"name\": \"Enterprise Only Feature\",\r\n  \"enabled\": true,\r\n  \"rolloutPercentage\": 0,\r\n  \"targetingRules\": [\r\n    {\r\n      \"attribute\": \"plan\",\r\n      \"operator\": \"EQUALS\",\r\n      \"value\": \"enterprise\"\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Evaluation",
+      "item": [
+        {
+          "name": "Evaluate flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"flagKey\": \"{{flagKey}}\",\r\n  \"userId\": \"user-abc-123\",\r\n  \"attributes\": {}\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Evaluate with attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"flagKey\": \"enterprise-feature\",\r\n  \"userId\": \"user-enterprise-1\",\r\n  \"attributes\": {\r\n    \"plan\": \"enterprise\",\r\n    \"region\": \"us-east\"\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Evaluate batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\r\n  {\r\n    \"flagKey\": \"{{flagKey}}\",\r\n    \"userId\": \"user-abc-123\",\r\n    \"attributes\": {}\r\n  },\r\n  {\r\n    \"flagKey\": \"homepage-ab-test\",\r\n    \"userId\": \"user-abc-123\",\r\n    \"attributes\": {}\r\n  }\r\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate/batch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate",
+                "batch"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Streaming",
+      "item": [
+        {
+          "name": "Open SSE stream",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stream"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "actuator",
+            "health"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": ""
+    },
+    {
+      "key": "adminKey",
+      "value": ""
+    },
+    {
+      "key": "clientKey",
+      "value": ""
+    },
+    {
+      "key": "flagKey",
+      "value": ""
+    }
+  ]
+}

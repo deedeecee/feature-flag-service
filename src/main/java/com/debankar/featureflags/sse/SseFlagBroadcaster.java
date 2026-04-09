@@ -21,7 +21,7 @@ public class SseFlagBroadcaster {
             new ConcurrentHashMap<>();
 
     public SseEmitter addEmitter() {
-        String id      = UUID.randomUUID().toString();
+        String id = UUID.randomUUID().toString();
         SseEmitter emitter = new SseEmitter(0L);
 
         emitters.put(id, emitter);
