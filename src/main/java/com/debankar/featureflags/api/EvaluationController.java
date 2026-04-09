@@ -1,5 +1,6 @@
 package com.debankar.featureflags.api;
 
+import com.debankar.featureflags.analytics.ImpressionLogger;
 import com.debankar.featureflags.api.dto.EvaluateRequest;
 import com.debankar.featureflags.api.dto.EvaluateResponseDto;
 import com.debankar.featureflags.cache.FlagCacheService;
@@ -21,20 +22,23 @@ import java.util.Optional;
 @RequestMapping("/evaluate")
 public class EvaluationController {
 
-    private final FlagCacheService flagCacheService;
-    private final FlagRepository   flagRepository;
-    private final FlagEvaluator    flagEvaluator;
-    private final FlagMapper       flagMapper;
+    private final FlagCacheService  flagCacheService;
+    private final FlagRepository    flagRepository;
+    private final FlagEvaluator     flagEvaluator;
+    private final FlagMapper        flagMapper;
+    private final ImpressionLogger  impressionLogger;
 
     public EvaluationController(
             FlagCacheService flagCacheService,
             FlagRepository flagRepository,
             FlagEvaluator flagEvaluator,
-            FlagMapper flagMapper) {
-        this.flagCacheService = flagCacheService;
-        this.flagRepository   = flagRepository;
-        this.flagEvaluator    = flagEvaluator;
-        this.flagMapper       = flagMapper;
+            FlagMapper flagMapper,
+            ImpressionLogger impressionLogger) {
+        this.flagCacheService  = flagCacheService;
+        this.flagRepository    = flagRepository;
+        this.flagEvaluator     = flagEvaluator;
+        this.flagMapper        = flagMapper;
+        this.impressionLogger  = impressionLogger;
     }
 
     @PostMapping
@@ -49,6 +53,11 @@ public class EvaluationController {
 
         EvaluateResponse result = flagEvaluator.evaluate(flag, ctx);
 
+        impressionLogger.logAsync(
+                request.getFlagKey(),
+                request.getUserId(),
+                result.getVariant());
+
         return new EvaluateResponseDto(
                 result.isEnabled(),
                 result.getVariant(),
@@ -58,10 +67,9 @@ public class EvaluationController {
     @PostMapping("/batch")
     public List<EvaluateResponseDto> evaluateBatch(
             @RequestBody List<@Valid EvaluateRequest> requests) {
-
         return requests.stream()
-                       .map(this::evaluate)
-                       .toList();
+                .map(this::evaluate)
+                .toList();
     }
 
     private Flag resolveFlag(String flagKey) {

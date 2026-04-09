@@ -43,3 +43,10 @@ management:
   endpoint:
     health:
       show-details: always
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss} [%X{traceId}] %-5level %logger{36} - %msg%n"
+  level:
+    com.debankar.featureflags: INFO
+    org.springframework.security: WARN

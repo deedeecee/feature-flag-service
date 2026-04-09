@@ -6,6 +6,7 @@ import com.debankar.featureflags.cache.FlagCacheService;
 import com.debankar.featureflags.cache.FlagMapper;
 import com.debankar.featureflags.persistence.FlagEntity;
 import com.debankar.featureflags.persistence.FlagRepository;
+import com.debankar.featureflags.persistence.ImpressionRepository;
 import com.debankar.featureflags.pubsub.FlagChangePublisher;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -13,7 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin/flags")
@@ -23,16 +26,19 @@ public class AdminFlagController {
     private final FlagCacheService   flagCacheService;
     private final FlagChangePublisher flagChangePublisher;
     private final FlagMapper          flagMapper;
+    private final ImpressionRepository impressionRepository;
 
     public AdminFlagController(
             FlagRepository flagRepository,
             FlagCacheService flagCacheService,
             FlagChangePublisher flagChangePublisher,
-            FlagMapper flagMapper) {
+            FlagMapper flagMapper,
+            ImpressionRepository impressionRepository) {
         this.flagRepository      = flagRepository;
         this.flagCacheService    = flagCacheService;
         this.flagChangePublisher = flagChangePublisher;
         this.flagMapper          = flagMapper;
+        this.impressionRepository = impressionRepository;
     }
 
     @GetMapping
@@ -102,6 +108,27 @@ public class AdminFlagController {
         flagCacheService.invalidateFlag(key);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{key}/stats")
+    public Map<String, Object> getFlagStats(@PathVariable String key) {
+        if (!flagRepository.existsByKey(key)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Flag not found: " + key);
+        }
+
+        long total = impressionRepository.countByFlagKey(key);
+
+        List<Map<String, Object>> variantBreakdown =
+                impressionRepository.countByVariantSince(
+                        key,
+                        OffsetDateTime.now().minusDays(7));
+
+        return Map.of(
+                "flagKey",          key,
+                "totalImpressions", total,
+                "last7Days",        variantBreakdown
+        );
     }
 
     private void applyRequest(FlagEntity entity,
