@@ -31,6 +31,10 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  web:
+    resources:
+      add-mappings: false
+
 feature-flags:
   admin-api-key: ${ADMIN_API_KEY:dev-admin-key}
   client-api-key: ${CLIENT_API_KEY:dev-client-key}

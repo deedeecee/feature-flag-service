@@ -47,7 +47,8 @@ public class SecurityConfig {
                                 "/actuator/prometheus",
                                 "/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/error"
                         ).permitAll()
                         .requestMatchers("/admin/**")
                         .hasRole("ADMIN")
@@ -107,7 +108,8 @@ public class SecurityConfig {
                 return path.startsWith("/actuator/health")
                         || path.startsWith("/actuator/prometheus")
                         || path.startsWith("/api-docs")
-                        || path.startsWith("/swagger-ui");
+                        || path.startsWith("/swagger-ui")
+                        || path.equals("/error");
             }
 
             private void setAuthentication(

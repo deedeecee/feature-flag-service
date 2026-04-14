@@ -1,0 +1,2966 @@
+{
+  "info": {
+    "_postman_id": "fabd2bf1-39b3-4063-8ebe-60e49d636b8d",
+    "name": "Feature Flag & A/B Testing Service",
+    "description": "Complete API test collection for the Feature Flag & A/B Testing Service built with Spring Boot.\n\n## How to use\n1. Import this collection into Postman.\n2. Make sure the application is running on localhost:8080 (`make run`).\n3. Execute requests in the order they appear — each folder builds on the previous one.\n\n## Collection variables\n- `baseUrl` — application base URL\n- `adminKey` — API key for admin endpoints\n- `clientKey` — API key for evaluation endpoints\n- `flagKey` — reused across requests (auto-set by the Create Flag request)\n- `abFlagKey` — key for the A/B test flag\n- `targetedFlagKey` — key for the targeted flag",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "31399026"
+  },
+  "item": [
+    {
+      "name": "01 — Health Check",
+      "item": [
+        {
+          "name": "01. Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Overall status is UP', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('UP');",
+                  "});",
+                  "pm.test('Database is UP', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.components.db.status).to.eql('UP');",
+                  "});",
+                  "pm.test('Redis is UP', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.components.redis.status).to.eql('UP');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Returns the health status of the application including PostgreSQL and Redis. Both must show UP before proceeding.\n\nExpected response:  \n{  \n\"status\": \"UP\",  \n\"components\": {  \n\"db\": { \"status\": \"UP\" },  \n\"redis\": { \"status\": \"UP\" }  \n}  \n}"
+          },
+          "response": []
+        },
+        {
+          "name": "02. Prometheus metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response contains JVM metrics', () => {",
+                  "    pm.expect(pm.response.text()).to.include('jvm_memory');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            },
+            "description": "Returns all Prometheus metrics in text format. Look for feature_flag_* custom metrics after the service has processed some requests."
+          },
+          "response": []
+        },
+        {
+          "name": "03. Swagger UI (open in browser)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": ""
+            },
+            "description": "Opens the Swagger UI. Best viewed in a browser. Navigate to http://localhost:8080/swagger-ui.html directly."
+          },
+          "response": []
+        },
+        {
+          "name": "04. Auth check — missing key returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Error message is present', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.error).to.include('Missing');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Confirms that unauthenticated requests are rejected. No X-API-Key header is sent.\n\nExpected: 401 Unauthorized with {\"error\": \"Missing X-API-Key header\"}"
+          },
+          "response": []
+        },
+        {
+          "name": "05. Auth check — client key on admin endpoint returns 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 403', () => {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Confirms that a client key cannot access admin endpoints.\n\nExpected: 403 Forbidden"
+          },
+          "response": []
+        }
+      ],
+      "description": "Verify the service and all its dependencies are up before running any other requests. Run this first every time."
+    },
+    {
+      "name": "02 — Boolean Flag (Percentage Rollout)",
+      "item": [
+        {
+          "name": "01. Create boolean flag (0% rollout)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Flag key matches', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.key).to.eql(pm.collectionVariables.get('flagKey'));",
+                  "});",
+                  "pm.test('Flag is enabled', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.true;",
+                  "});",
+                  "pm.test('Rollout is 0', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.rolloutPercentage).to.eql(0);",
+                  "});",
+                  "pm.test('ID is a UUID', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.match(/^[0-9a-f-]{36}$/);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"New Checkout Redesign\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Creates a boolean flag that is enabled but has 0% rollout. This is the standard pattern for deploying a feature that is not yet visible to any user.\n\nExpected: 201 Created with the flag object including a generated UUID and timestamps."
+          },
+          "response": []
+        },
+        {
+          "name": "02. List all flags",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "pm.test('At least one flag exists', () => {",
+                  "    pm.expect(pm.response.json().length).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Returns all flags in the system. Should contain at least the flag created in the previous request."
+          },
+          "response": []
+        },
+        {
+          "name": "03. Get flag by key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Correct flag returned', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.key).to.eql(pm.collectionVariables.get('flagKey'));",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Retrieves the flag created in request 01 by its key.\n\nExpected: 200 OK with the full flag object."
+          },
+          "response": []
+        },
+        {
+          "name": "04. Evaluate at 0% — expect DEFAULT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Flag is disabled for all users at 0%', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.false;",
+                  "    pm.expect(json.reason).to.eql('DEFAULT');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"userId\": \"user-abc-123\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates the flag for a user when rollout is 0%. No user should receive this flag.\n\nExpected: { \"enabled\": false, \"variant\": null, \"reason\": \"DEFAULT\" }"
+          },
+          "response": []
+        },
+        {
+          "name": "05. Ramp rollout to 50%",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Rollout updated to 50', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.rolloutPercentage).to.eql(50);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"New Checkout Redesign\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Updates the flag rollout to 50%. After this, approximately half of all users should receive the flag as enabled.\n\nThis also triggers a Redis cache update and an SSE broadcast to all connected clients."
+          },
+          "response": []
+        },
+        {
+          "name": "06. Evaluate at 50% — user-abc-123",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Reason is ROLLOUT or DEFAULT', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(['ROLLOUT', 'DEFAULT']).to.include(json.reason);",
+                  "});",
+                  "pm.test('Trace ID header is present', () => {",
+                  "    pm.expect(pm.response.headers.get('X-Trace-Id')).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"userId\": \"user-abc-123\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates for user-abc-123 at 50% rollout. Result is deterministic — this user always gets the same outcome.\n\nExpected: enabled is true or false, reason is ROLLOUT or DEFAULT.\nThe X-Trace-Id header in the response confirms trace ID propagation is working."
+          },
+          "response": []
+        },
+        {
+          "name": "07. Evaluate at 50% — user-def-456",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Reason is ROLLOUT or DEFAULT', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(['ROLLOUT', 'DEFAULT']).to.include(json.reason);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"userId\": \"user-def-456\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates for a different user at 50% rollout. Different users hash to different buckets, so this user may get a different result to user-abc-123 — demonstrating the consistent hashing at work."
+          },
+          "response": []
+        },
+        {
+          "name": "08. Evaluate consistency check — same user, same result",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"userId\": \"user-abc-123\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Re-evaluates user-abc-123. The result must be identical to request 06 — same user always gets the same outcome due to consistent hashing."
+          },
+          "response": []
+        },
+        {
+          "name": "09. Disable flag — killswitch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Flag is disabled', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"New Checkout Redesign\",\n  \"enabled\": false,\n  \"rolloutPercentage\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Sets enabled to false. This is the killswitch — the flag immediately returns false for every user regardless of rollout percentage or targeting rules."
+          },
+          "response": []
+        },
+        {
+          "name": "10. Evaluate after killswitch — expect DISABLED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Flag is DISABLED for all users', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.false;",
+                  "    pm.expect(json.reason).to.eql('DISABLED');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"userId\": \"user-abc-123\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "After the killswitch is activated, every user must receive enabled=false with reason=DISABLED — even users who were previously in the rollout.\n\nExpected: { \"enabled\": false, \"variant\": null, \"reason\": \"DISABLED\" }"
+          },
+          "response": []
+        },
+        {
+          "name": "11. Re-enable flag at 100%",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Flag is re-enabled at 100%', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.true;",
+                  "    pm.expect(json.rolloutPercentage).to.eql(100);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"New Checkout Redesign\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Re-enables the flag and sets rollout to 100% — all users now receive the flag."
+          },
+          "response": []
+        },
+        {
+          "name": "12. Evaluate at 100% — expect ROLLOUT for all users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Flag is enabled for all users at 100%', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.true;",
+                  "    pm.expect(json.reason).to.eql('ROLLOUT');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"userId\": \"user-abc-123\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "At 100% rollout every user must receive enabled=true with reason=ROLLOUT.\n\nExpected: { \"enabled\": true, \"variant\": null, \"reason\": \"ROLLOUT\" }"
+          },
+          "response": []
+        },
+        {
+          "name": "13. Evaluate non-existent flag — expect 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', () => {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"this-flag-does-not-exist\",\n  \"userId\": \"user-abc-123\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Confirms that evaluating a flag that doesn't exist returns 404 rather than silently returning false.\n\nExpected: 404 Not Found"
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests the core boolean flag lifecycle:\ncreate → verify → evaluate → update rollout → disable (killswitch) → re-enable → delete.\n\nRun these requests in order from top to bottom."
+    },
+    {
+      "name": "03 — A/B Testing",
+      "item": [
+        {
+          "name": "01. Create A/B test flag (50/50 split)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Variants are present', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.variants).to.be.an('array');",
+                  "    pm.expect(json.variants.length).to.eql(2);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{abFlagKey}}\",\n  \"name\": \"Homepage A/B Test\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\",   \"weight\": 50 },\n    { \"name\": \"treatment\", \"weight\": 50 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Creates an A/B test flag with two variants at equal weight. rolloutPercentage is 100 so every user is included in the experiment.\n\nExpected: 201 Created with variants array in the response."
+          },
+          "response": []
+        },
+        {
+          "name": "02. Evaluate A/B flag — user-alice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Flag is enabled', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.true;",
+                  "});",
+                  "pm.test('Variant is control or treatment', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(['control', 'treatment']).to.include(json.variant);",
+                  "});",
+                  "pm.test('Reason is ROLLOUT', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.reason).to.eql('ROLLOUT');",
+                  "});",
+                  "// Save alice's variant for the consistency check",
+                  "pm.collectionVariables.set('aliceVariant', pm.response.json().variant);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{abFlagKey}}\",\n  \"userId\": \"user-alice\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates the A/B flag for user-alice. The variant field in the response will be either 'control' or 'treatment'.\n\nExpected: enabled=true, variant is 'control' or 'treatment', reason='ROLLOUT'"
+          },
+          "response": []
+        },
+        {
+          "name": "03. Evaluate A/B flag — user-bob",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Variant is control or treatment', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(['control', 'treatment']).to.include(json.variant);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{abFlagKey}}\",\n  \"userId\": \"user-bob\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates for user-bob. Compare this result to user-alice's — they may receive different variants, demonstrating the consistent hashing distribution."
+          },
+          "response": []
+        },
+        {
+          "name": "04. Variant consistency check — user-alice again",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Variant is identical to first evaluation', () => {",
+                  "    const json = pm.response.json();",
+                  "    const firstVariant = pm.collectionVariables.get('aliceVariant');",
+                  "    pm.expect(json.variant).to.eql(firstVariant);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{abFlagKey}}\",\n  \"userId\": \"user-alice\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Re-evaluates user-alice. The variant must be identical to what she received in request 02, proving consistent hashing is working correctly across multiple calls."
+          },
+          "response": []
+        },
+        {
+          "name": "05. Create multi-variant flag (3 variants)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Three variants created', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.variants.length).to.eql(3);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"pricing-page-test\",\n  \"name\": \"Pricing Page Multi-variant Test\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\",     \"weight\": 34 },\n    { \"name\": \"treatment-a\", \"weight\": 33 },\n    { \"name\": \"treatment-b\", \"weight\": 33 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Creates a 3-variant flag. Weights must sum to exactly 100. Demonstrates that the service supports multi-variant experiments beyond simple A/B splits.\n\nExpected: 201 Created"
+          },
+          "response": []
+        },
+        {
+          "name": "06. Evaluate multi-variant flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Variant is one of the three options', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(['control', 'treatment-a', 'treatment-b']).to.include(json.variant);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"pricing-page-test\",\n  \"userId\": \"user-alice\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates the 3-variant flag. Variant will be one of: control, treatment-a, or treatment-b."
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests A/B flag creation and variant assignment.\n\nVerifies that:\n- Variants are assigned based on consistent hashing\n- The same user always gets the same variant\n- Different users can get different variants\n- Variant weights control distribution"
+    },
+    {
+      "name": "04 — Targeting Rules",
+      "item": [
+        {
+          "name": "01. Create targeted flag (EQUALS operator)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Targeting rules are present', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.targetingRules).to.be.an('array');",
+                  "    pm.expect(json.targetingRules.length).to.eql(1);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{targetedFlagKey}}\",\n  \"name\": \"Enterprise Only Feature\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 0,\n  \"targetingRules\": [\n    {\n      \"attribute\": \"plan\",\n      \"operator\": \"EQUALS\",\n      \"value\": \"enterprise\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Creates a flag with rolloutPercentage=0 and a targeting rule.\nOnly users whose 'plan' attribute equals 'enterprise' will receive this flag. All others receive DEFAULT.\n\nExpected: 201 Created"
+          },
+          "response": []
+        },
+        {
+          "name": "02. Evaluate — enterprise user (expect TARGETED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Enterprise user is TARGETED', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.true;",
+                  "    pm.expect(json.reason).to.eql('TARGETED');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{targetedFlagKey}}\",\n  \"userId\": \"user-enterprise-1\",\n  \"attributes\": {\n    \"plan\": \"enterprise\",\n    \"region\": \"us-east\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates for a user with plan=enterprise. The targeting rule matches, so the user receives the flag even though rollout is 0%.\n\nExpected: { \"enabled\": true, \"reason\": \"TARGETED\" }"
+          },
+          "response": []
+        },
+        {
+          "name": "03. Evaluate — free user (expect DEFAULT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Free user gets DEFAULT', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.false;",
+                  "    pm.expect(json.reason).to.eql('DEFAULT');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{targetedFlagKey}}\",\n  \"userId\": \"user-free-1\",\n  \"attributes\": {\n    \"plan\": \"free\",\n    \"region\": \"us-east\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates for a user with plan=free. The targeting rule does not match, rollout is 0%, so the user receives DEFAULT.\n\nExpected: { \"enabled\": false, \"reason\": \"DEFAULT\" }"
+          },
+          "response": []
+        },
+        {
+          "name": "04. Create flag with IN operator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"paid-plans-feature\",\n  \"name\": \"Paid Plans Only Feature\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 0,\n  \"targetingRules\": [\n    {\n      \"attribute\": \"plan\",\n      \"operator\": \"IN\",\n      \"value\": \"pro,team,enterprise\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Creates a flag using the IN operator. Any user whose plan is one of pro, team, or enterprise will match.\n\nExpected: 201 Created"
+          },
+          "response": []
+        },
+        {
+          "name": "05. Evaluate IN operator — pro user (expect TARGETED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Pro user is TARGETED via IN operator', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.true;",
+                  "    pm.expect(json.reason).to.eql('TARGETED');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"paid-plans-feature\",\n  \"userId\": \"user-pro-1\",\n  \"attributes\": {\n    \"plan\": \"pro\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Pro plan user matches the IN operator targeting rule.\n\nExpected: { \"enabled\": true, \"reason\": \"TARGETED\" }"
+          },
+          "response": []
+        },
+        {
+          "name": "06. Create flag with GREATER_THAN operator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"adult-content-flag\",\n  \"name\": \"Adult Content Feature\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 0,\n  \"targetingRules\": [\n    {\n      \"attribute\": \"age\",\n      \"operator\": \"GREATER_THAN\",\n      \"value\": \"17\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Creates a flag using the GREATER_THAN operator on a numeric attribute. Users with age > 17 will match.\n\nExpected: 201 Created"
+          },
+          "response": []
+        },
+        {
+          "name": "07. Evaluate GREATER_THAN — age 25 (expect TARGETED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Age 25 user is TARGETED', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.true;",
+                  "    pm.expect(json.reason).to.eql('TARGETED');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"adult-content-flag\",\n  \"userId\": \"user-adult\",\n  \"attributes\": {\n    \"age\": \"25\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "User with age 25 is greater than 17 — matches the rule.\n\nExpected: { \"enabled\": true, \"reason\": \"TARGETED\" }"
+          },
+          "response": []
+        },
+        {
+          "name": "08. Evaluate GREATER_THAN — age 15 (expect DEFAULT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Age 15 user gets DEFAULT', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.false;",
+                  "    pm.expect(json.reason).to.eql('DEFAULT');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"adult-content-flag\",\n  \"userId\": \"user-minor\",\n  \"attributes\": {\n    \"age\": \"15\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "User with age 15 is not greater than 17 — does not match.\n\nExpected: { \"enabled\": false, \"reason\": \"DEFAULT\" }"
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests attribute-based targeting rules.\n\nVerifies all six operators: EQUALS, NOT_EQUALS, CONTAINS, IN, GREATER_THAN, LESS_THAN.\n\nA targeted user receives enabled=true with reason=TARGETED regardless of rollout percentage."
+    },
+    {
+      "name": "05 — Batch Evaluation",
+      "item": [
+        {
+          "name": "01. Batch evaluate multiple flags",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Returns three results', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array');",
+                  "    pm.expect(json.length).to.eql(3);",
+                  "});",
+                  "pm.test('Each result has required fields', () => {",
+                  "    const json = pm.response.json();",
+                  "    json.forEach(result => {",
+                  "        pm.expect(result).to.have.property('enabled');",
+                  "        pm.expect(result).to.have.property('reason');",
+                  "    });",
+                  "});",
+                  "pm.test('Third result is TARGETED (enterprise user)', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json[2].enabled).to.be.true;",
+                  "    pm.expect(json[2].reason).to.eql('TARGETED');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"flagKey\": \"{{flagKey}}\",\n    \"userId\": \"user-abc-123\",\n    \"attributes\": {}\n  },\n  {\n    \"flagKey\": \"{{abFlagKey}}\",\n    \"userId\": \"user-abc-123\",\n    \"attributes\": {}\n  },\n  {\n    \"flagKey\": \"{{targetedFlagKey}}\",\n    \"userId\": \"user-abc-123\",\n    \"attributes\": { \"plan\": \"enterprise\" }\n  }\n]"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate/batch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate",
+                "batch"
+              ]
+            },
+            "description": "Evaluates three flags in a single request for the same user. Returns an array of results in the same order as the input.\n\nThis is the recommended pattern for application startup — fetch all relevant flags in one round trip rather than three separate calls.\n\nExpected: 200 OK with an array of three evaluation responses."
+          },
+          "response": []
+        },
+        {
+          "name": "02. Batch evaluate — mixed valid and invalid flags",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"flagKey\": \"{{flagKey}}\",\n    \"userId\": \"user-abc-123\",\n    \"attributes\": {}\n  },\n  {\n    \"flagKey\": \"flag-that-does-not-exist\",\n    \"userId\": \"user-abc-123\",\n    \"attributes\": {}\n  }\n]"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate/batch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate",
+                "batch"
+              ]
+            },
+            "description": "Sends a batch request where one flag exists and one does not. Observe how the service handles the mix — the second request will return 404."
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests the batch evaluation endpoint which allows evaluating multiple flags in a single HTTP request."
+    },
+    {
+      "name": "06 — Real-Time SSE Updates",
+      "item": [
+        {
+          "name": "01. Open SSE stream (keep this tab open)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stream"
+              ]
+            },
+            "description": "Opens a persistent SSE connection. The response panel stays open and displays events as they arrive.\n\nKeep this tab open and send flag update requests from other tabs to see events appear here in real time.\n\nEach event looks like:  \nevent: flag-change  \ndata: {\"key\":\"...\",\"enabled\":true,...}"
+          },
+          "response": []
+        },
+        {
+          "name": "02. Trigger SSE event — update boolean flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Rollout updated to 75', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.rolloutPercentage).to.eql(75);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"New Checkout Redesign\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 75\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Send this request while the SSE stream (request 01) is open in another tab. You should immediately see a flag-change event appear in the SSE tab with the updated flag data.\n\nThis demonstrates the full pub/sub pipeline:\nAdmin API → PostgreSQL → Redis cache → Redis pub/sub → FlagChangeListener → SseFlagBroadcaster → SSE client"
+          },
+          "response": []
+        },
+        {
+          "name": "03. Trigger SSE event — disable flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Flag is now disabled', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.enabled).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"New Checkout Redesign\",\n  \"enabled\": false,\n  \"rolloutPercentage\": 75\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Sends another flag change with enabled=false. Watch for a second event in the SSE stream tab showing the flag is now disabled."
+          },
+          "response": []
+        },
+        {
+          "name": "04. Trigger SSE event — re-enable flag",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"New Checkout Redesign\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Re-enables the flag at 100% rollout. A third SSE event should appear in the stream tab."
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests the Server-Sent Events streaming endpoint.\n\nHOW TO TEST THIS FOLDER:\n1. Send request 01 (Open SSE stream) and leave it open — do not close the tab.\n2. Open a new Postman tab.\n3. Send any flag update request (e.g. request 02 or 03).\n4. Switch back to the SSE tab and watch the event appear in real time.\n\nThe event should appear within milliseconds of the flag update."
+    },
+    {
+      "name": "07 — Analytics & Impressions",
+      "item": [
+        {
+          "name": "01. Generate impressions — evaluate 5 times",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"userId\": \"user-impression-test\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates the flag to generate an impression record. Send this request 4-5 times using Postman's 'Send' button to generate multiple impressions. Each evaluation is recorded asynchronously in the impressions table.\n\nTip: Use Postman's Collection Runner or simply click Send multiple times."
+          },
+          "response": []
+        },
+        {
+          "name": "02. Generate impressions — A/B flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{abFlagKey}}\",\n  \"userId\": \"user-impression-test\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "Evaluates the A/B flag to generate impressions with variant data. Send multiple times to build up impression history for the stats endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "03. Get flag stats — boolean flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has required fields', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('flagKey');",
+                  "    pm.expect(json).to.have.property('totalImpressions');",
+                  "    pm.expect(json).to.have.property('last7Days');",
+                  "});",
+                  "pm.test('Total impressions is a number', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.totalImpressions).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}",
+                "stats"
+              ]
+            },
+            "description": "Returns the total impression count and a variant breakdown for the last 7 days for the boolean flag.\n\nExpected response:\n{\n  \"flagKey\": \"checkout-redesign\",\n  \"totalImpressions\": 5,\n  \"last7Days\": [\n    { \"variant\": null, \"count\": 5 }\n  ]\n}"
+          },
+          "response": []
+        },
+        {
+          "name": "04. Get flag stats — A/B flag with variant breakdown",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has variant breakdown', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.last7Days).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{abFlagKey}}/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{abFlagKey}}",
+                "stats"
+              ]
+            },
+            "description": "Returns impression stats for the A/B flag with a breakdown by variant. The last7Days array shows how many users received each variant.\n\nExpected response:\n{\n  \"flagKey\": \"homepage-ab-test\",\n  \"totalImpressions\": 5,\n  \"last7Days\": [\n    { \"variant\": \"control\",   \"count\": 3 },\n    { \"variant\": \"treatment\", \"count\": 2 }\n  ]\n}"
+          },
+          "response": []
+        },
+        {
+          "name": "05. Get stats for non-existent flag — expect 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', () => {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/this-does-not-exist/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "this-does-not-exist",
+                "stats"
+              ]
+            },
+            "description": "Confirms that requesting stats for a flag that doesn't exist returns 404.\n\nExpected: 404 Not Found"
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests the impression logging and analytics endpoint.\n\nEvery call to /evaluate records an impression asynchronously. After making several evaluation requests, the stats endpoint shows the accumulated count."
+    },
+    {
+      "name": "08 — Validation & Error Handling",
+      "item": [
+        {
+          "name": "01. Create flag with invalid key — expect 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"INVALID_KEY_WITH_UPPERCASE\",\n  \"name\": \"Bad Key Flag\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Flag keys must be lowercase alphanumeric with hyphens. Uppercase and underscores are rejected by the @Pattern validation.\n\nExpected: 400 Bad Request"
+          },
+          "response": []
+        },
+        {
+          "name": "02. Create flag with rollout > 100 — expect 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"invalid-rollout-flag\",\n  \"name\": \"Invalid Rollout\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 150\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Rollout percentage must be between 0 and 100. Values outside this range are rejected by @Min and @Max validation.\n\nExpected: 400 Bad Request"
+          },
+          "response": []
+        },
+        {
+          "name": "03. Create flag with missing name — expect 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"no-name-flag\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "The name field is required (@NotBlank). Omitting it should return 400.\n\nExpected: 400 Bad Request"
+          },
+          "response": []
+        },
+        {
+          "name": "04. Create duplicate flag key — expect 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409', () => {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{flagKey}}\",\n  \"name\": \"Duplicate Flag\",\n  \"enabled\": true,\n  \"rolloutPercentage\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Attempts to create a flag with the same key as the one created in folder 02. Flag keys must be unique.\n\nExpected: 409 Conflict"
+          },
+          "response": []
+        },
+        {
+          "name": "05. Evaluate with missing userId — expect 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{clientKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flagKey\": \"{{flagKey}}\",\n  \"attributes\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluate"
+              ]
+            },
+            "description": "userId is required for evaluation (@NotBlank). Omitting it should return 400.\n\nExpected: 400 Bad Request"
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests input validation and error responses.\n\nVerifies that the API rejects malformed requests with descriptive error messages."
+    },
+    {
+      "name": "09 — Cleanup",
+      "item": [
+        {
+          "name": "01. Delete boolean flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{flagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{flagKey}}"
+              ]
+            },
+            "description": "Deletes the boolean flag created in folder 02.\n\nExpected: 204 No Content"
+          },
+          "response": []
+        },
+        {
+          "name": "02. Delete A/B test flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{abFlagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{abFlagKey}}"
+              ]
+            },
+            "description": "Deletes the A/B test flag.\n\nExpected: 204 No Content"
+          },
+          "response": []
+        },
+        {
+          "name": "03. Delete targeted flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/{{targetedFlagKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "{{targetedFlagKey}}"
+              ]
+            },
+            "description": "Deletes the enterprise targeting flag.\n\nExpected: 204 No Content"
+          },
+          "response": []
+        },
+        {
+          "name": "04. Delete multi-variant flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/pricing-page-test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "pricing-page-test"
+              ]
+            },
+            "description": "Deletes the 3-variant pricing page flag.\n\nExpected: 204 No Content"
+          },
+          "response": []
+        },
+        {
+          "name": "05. Delete paid-plans flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/paid-plans-feature",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "paid-plans-feature"
+              ]
+            },
+            "description": "Deletes the IN operator flag.\n\nExpected: 204 No Content"
+          },
+          "response": []
+        },
+        {
+          "name": "06. Delete adult-content flag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags/adult-content-flag",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "adult-content-flag"
+              ]
+            },
+            "description": "Deletes the GREATER_THAN operator flag.\n\nExpected: 204 No Content"
+          },
+          "response": []
+        },
+        {
+          "name": "07. Verify all flags deleted",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/flags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            },
+            "description": "Lists all flags to confirm the database is clean. Should return an empty array if all flags were deleted successfully."
+          },
+          "response": []
+        }
+      ],
+      "description": "Deletes all flags created during testing.\n\nRun this folder at the end of a test session to leave the database clean for the next run."
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "adminKey",
+      "value": "dev-admin-key"
+    },
+    {
+      "key": "clientKey",
+      "value": "dev-client-key"
+    },
+    {
+      "key": "flagKey",
+      "value": "checkout-redesign"
+    },
+    {
+      "key": "abFlagKey",
+      "value": "homepage-ab-test"
+    },
+    {
+      "key": "targetedFlagKey",
+      "value": "enterprise-feature"
+    },
+    {
+      "key": "aliceVariant",
+      "value": ""
+    }
+  ]
+}
